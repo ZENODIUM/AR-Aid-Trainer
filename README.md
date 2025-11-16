@@ -165,7 +165,13 @@ Learn emergency snakebite treatment:
   - Voice-only mode for visually impaired
   - Simplified UI for beginners
   - Offline mode capability
+    
+## Resources
 
+- **AI Model**: Google Gemini 2.5 Flash for intelligent assistance and guidance
+- **3D Assets**: Sketchfab (https://sketchfab.com) for 3D models and assets
+- **AR Framework**: Three.js (https://threejs.org) for 3D rendering and AR simulation
+  
 ## License
 
 MIT License
