@@ -14,7 +14,7 @@ An augmented reality first aid training application that teaches life-saving pro
 
 ## Team
 
-- vishnu - vs3164@gmail.com
+- vishnu - vs3164@nyu.edu
 
 ## Setup
 
@@ -52,7 +52,7 @@ Open your browser and navigate to `http://localhost:5000`
 
 For mobile devices on the same network, use your computer's IP address instead of localhost.
 
-## Used AI to Implement the AR and 3D Object Interactions
+### Used AI to Implement the AR and 3D Object Interactions
 
 ## Procedures
 
