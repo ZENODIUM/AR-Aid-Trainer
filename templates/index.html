@@ -1,0 +1,2659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>First Aid AR Simulation</title>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https:
+            "three/addons/": "https:
+        }
+    }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #000;
+        }
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 2;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 14px;
+        }
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1001;
+            text-align: center;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 1002;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 5px;
+        }
+        #placeButton {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            transform: none;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 1003;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+        #placeButton:hover {
+            background: #45a049;
+        }
+        #placeButton:active {
+            transform: scale(0.95);
+        }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            transform: none;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            z-index: 1004;
+            max-width: 180px;
+            text-align: left;
+            display: none;
+            font-size: 12px;
+        }
+        #instructions h3 {
+            margin-bottom: 6px;
+            color: #4CAF50;
+            font-size: 13px;
+        }
+        #instructions .step {
+            margin: 3px 0;
+            padding: 3px 5px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        #instructions .step.completed {
+            background: rgba(76, 175, 80, 0.3);
+            text-decoration: line-through;
+            color: #81C784;
+        }
+        #instructions .step.current {
+            background: rgba(255, 193, 7, 0.3);
+            font-weight: bold;
+        }
+        
+        #objectSelectionScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2001;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        #objectSelectionScreen h2 {
+            font-size: 2em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #objectSelectionGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            max-width: 600px;
+            width: 90%;
+            padding: 20px;
+        }
+        .objectSelectionItem {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        .objectSelectionItem:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #4CAF50;
+            transform: scale(1.05);
+        }
+        .objectSelectionItem:active {
+            transform: scale(0.95);
+        }
+        .objectSelectionItem .objectIcon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        .objectSelectionItem .objectName {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        #completionMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            z-index: 1006;
+            display: none;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+        #progressBar {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            transform: none;
+            width: 180px;
+            height: 60px;
+            background: transparent;
+            border: none;
+            border-radius: 15px;
+            z-index: 1007;
+            display: none;
+            overflow: visible;
+        }
+        #progressBarFill {
+            height: 30px;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.1s linear;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            border: 2px solid white;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        #progressBarText {
+            position: absolute;
+            bottom: 7px;
+            left: 0px;
+            transform: none;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            white-space: normal;
+            width: 100%;
+            text-align: left;
+            margin-top: 8px;
+            line-height: 1.2;
+        }
+        #aiAssistantButton {
+            position: absolute;
+            bottom: 30px;
+            left: 10px;
+            background: #2E7D32;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            z-index: 1008;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            display: none;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        #aiAssistantButton:hover {
+            background: #1B5E20;
+        }
+        #aiAssistantPanel {
+            position: absolute;
+            bottom: 80px;
+            left: 10px;
+            width: 220px;
+            max-height: 250px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #2E7D32;
+            border-radius: 12px;
+            padding: 10px;
+            z-index: 1009;
+            display: none;
+            flex-direction: column;
+            color: white;
+            font-size: 12px;
+        }
+        #aiAssistantHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #aiAssistantHeader h3 {
+            color: #4CAF50;
+            font-size: 14px;
+            margin: 0;
+        }
+        #closeAIBtn {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 25px;
+            height: 25px;
+            line-height: 25px;
+        }
+        #aiAssistantContent {
+            max-height: 180px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        #aiAssistantContent .ai-message {
+            margin: 6px 0;
+            padding: 8px;
+            background: rgba(46, 125, 50, 0.2);
+            border-radius: 6px;
+            border-left: 3px solid #4CAF50;
+            font-size: 11px;
+        }
+        #aiAssistantContent .ai-loading {
+            color: #81C784;
+            font-style: italic;
+            padding: 10px;
+        }
+        #homeScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            border: 4px solid #2E7D32;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            color: white;
+            padding: 40px 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        #homeScreen h1 {
+            font-size: 2.8em;
+            margin-top: 20px;
+            margin-bottom: 30px;
+            color: #4CAF50;
+            text-shadow: 2px 2px 8px rgba(46, 125, 50, 0.5);
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        #homeScreenModel {
+            width: 200px;
+            height: 200px;
+            margin: 20px 0;
+            position: relative;
+        }
+        #homeScreenModel canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        #homeScreen .subtitle {
+            font-size: 1em;
+            color: #81C784;
+            margin: 10px 0 40px 0;
+            text-align: center;
+            padding: 0 20px;
+            line-height: 1.5;
+        }
+        #homeScreen .procedureButton {
+            background: #1B5E20;
+            border: 3px solid #4CAF50;
+            color: white;
+            padding: 25px 50px;
+            font-size: 1.8em;
+            border-radius: 15px;
+            cursor: pointer;
+            margin: 15px;
+            min-width: 250px;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(46, 125, 50, 0.4);
+        }
+        #homeScreen .procedureButton:hover {
+            background: #2E7D32;
+            border-color: #66BB6A;
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.6);
+        }
+        #homeScreen .procedureButton:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div id="homeScreen">
+        <h1>AR Aid Trainer</h1>
+        <div id="homeScreenModel"></div>
+        <p class="subtitle">Learn life saving first aid through AR and AI</p>
+        <button class="procedureButton" id="cutsBtn">Cuts</button>
+        <button class="procedureButton" id="beeStingBtn">Bee Sting</button>
+        <button class="procedureButton" id="snakebiteBtn">Snakebite</button>
+    </div>
+    <video id="video" autoplay playsinline style="display: none;"></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+    <div id="info">
+        <p><strong>First Aid AR Simulation</strong></p>
+        <p id="statusText">3D model displayed in camera view</p>
+    </div>
+    <div id="instructions">
+        <h3 id="procedureTitle">First Aid Procedure</h3>
+        <div id="stepsContainer"></div>
+    </div>
+    
+    <button id="aiAssistantButton">AI Assistant</button>
+    <div id="aiAssistantPanel">
+        <div id="aiAssistantHeader">
+            <h3>AI Assistant</h3>
+            <button id="closeAIBtn">×</button>
+        </div>
+        <div id="aiAssistantContent"></div>
+    </div>
+    <div id="objectSelectionScreen">
+        <h2>Select First Aid Item</h2>
+        <div id="objectSelectionGrid"></div>
+    </div>
+    <div id="completionMessage"></div>
+    <div id="progressBar">
+        <div id="progressBarText">Hold cotton ball on wound...</div>
+        <div id="progressBarFill"></div>
+    </div>
+    <div id="error"></div>
+    <div id="loading">Loading camera and 3D model...</div>
+    <button id="placeButton">Place Hand</button>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const infoDiv = document.getElementById('info');
+        const statusText = document.getElementById('statusText');
+        const errorDiv = document.getElementById('error');
+        const loadingDiv = document.getElementById('loading');
+        const placeButton = document.getElementById('placeButton');
+        const instructionsDiv = document.getElementById('instructions');
+        
+        const completionMessage = document.getElementById('completionMessage');
+        const stepsContainer = document.getElementById('stepsContainer');
+        const procedureTitle = document.getElementById('procedureTitle');
+        const homeScreen = document.getElementById('homeScreen');
+        const cutsBtn = document.getElementById('cutsBtn');
+        const beeStingBtn = document.getElementById('beeStingBtn');
+        const snakebiteBtn = document.getElementById('snakebiteBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const progressBarText = document.getElementById('progressBarText');
+        const aiAssistantButton = document.getElementById('aiAssistantButton');
+        const aiAssistantPanel = document.getElementById('aiAssistantPanel');
+        const aiAssistantContent = document.getElementById('aiAssistantContent');
+        const closeAIBtn = document.getElementById('closeAIBtn');
+
+        let scene, camera, renderer, handModel; 
+        let firstAidKitModel = null; 
+        let homeScreenScene, homeScreenCamera, homeScreenRenderer, homeScreenKitModel = null; 
+        let currentSpeechUtterance = null; 
+        let speechQueue = []; 
+        let isSpeaking = false; 
+        let videoWidth, videoHeight;
+        
+        
+        let currentProcedure = null;
+        
+        
+        let allObjects = {}; 
+        let woundPosition = new THREE.Vector3(0, 0, 0);
+        let woundLocalCenter = new THREE.Vector3(0, 0, 0); 
+        let woundRadius = 0.15; 
+        
+        
+        let objectVisibility = {};
+        
+        
+        let isDragging = false;
+        let draggedObject = null;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        
+        
+        let currentStep = 1;
+        let stepsCompleted = {};
+        
+        
+        let lastHandPosition = new THREE.Vector3(0, 0, 0);
+        let positionHistory = []; 
+        
+        
+        let waterDrops = []; 
+        let waterDropGroup = null; 
+        
+        
+        const procedures = {
+            cuts: {
+                name: 'Cuts',
+                baseModel: 'hand.glb',
+                steps: [
+                    { number: 1, text: 'Apply cotton ball to wound', objectType: 'cotton', objectFile: 'cotton_ball.glb', buttonText: 'Cotton Ball' },
+                    { number: 2, text: 'Wash with water', objectType: 'bottle', objectFile: 'basic_bottle.glb', buttonText: 'Water Bottle' },
+                    { number: 3, text: 'Rub antiseptic on wound', objectType: 'antiseptic', objectFile: 'bottle.glb', buttonText: 'Antiseptic' },
+                    { number: 4, text: 'Apply bandaid', objectType: 'bandaid', objectFile: 'band_aid.glb', buttonText: 'Bandaid' }
+                ]
+            },
+            beeSting: {
+                name: 'Bee Sting',
+                baseModel: 'hand.glb',
+                steps: [
+                    { number: 1, text: 'Remove stinger with tweezers', objectType: 'tweezers', objectFile: 'tweezers.glb', buttonText: 'Tweezers' },
+                    { number: 2, text: 'Wash with water', objectType: 'bottle', objectFile: 'basic_bottle.glb', buttonText: 'Water Bottle' },
+                    { number: 3, text: 'Apply ice cube', objectType: 'ice', objectFile: 'ice_cube.glb', buttonText: 'Ice Cube' },
+                    { number: 4, text: 'Apply bandaid', objectType: 'bandaid', objectFile: 'band_aid.glb', buttonText: 'Bandaid' }
+                ]
+            },
+            snakebite: {
+                name: 'Snakebite',
+                baseModel: 'leg_foot.glb',
+                steps: [
+                    { number: 1, text: 'Wrap cloth on top of wound', objectType: 'cloth', objectFile: 'cloth.glb', buttonText: 'Cloth' },
+                    { number: 2, text: 'Place splint', objectType: 'splint', objectFile: 'splint.glb', buttonText: 'Splint' },
+                    { number: 3, text: 'Call ambulance', objectType: 'cellphone', objectFile: 'cellphone.glb', buttonText: 'Call Ambulance' }
+                ]
+            }
+        };
+        
+        
+        let isPlaced = false;
+        let initialOrientation = { alpha: 0, beta: 0, gamma: 0 };
+        let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
+        let placedPosition = new THREE.Vector3(0, 0, -2);
+        let deviceOrientationSupported = false;
+        
+        
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                        (window.innerWidth <= 768 && window.innerHeight <= 1024);
+
+        
+        function initHomeScreenModel() {
+            const homeScreenModelContainer = document.getElementById('homeScreenModel');
+            if (!homeScreenModelContainer) return;
+            
+            
+            const homeCanvas = document.createElement('canvas');
+            homeScreenModelContainer.appendChild(homeCanvas);
+            
+            
+            homeScreenScene = new THREE.Scene();
+            homeScreenScene.background = new THREE.Color(0x000000);
+            
+            homeScreenCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+            homeScreenCamera.position.set(0, 0, 2);
+            
+            homeScreenRenderer = new THREE.WebGLRenderer({ 
+                canvas: homeCanvas,
+                alpha: true,
+                antialias: true
+            });
+            homeScreenRenderer.setSize(200, 200);
+            homeScreenRenderer.setPixelRatio(window.devicePixelRatio);
+            
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            homeScreenScene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            homeScreenScene.add(directionalLight);
+            
+            
+            const loader = new GLTFLoader();
+            loader.load(
+                '/static/first_aid_kit.glb',
+                (gltf) => {
+                    homeScreenKitModel = gltf.scene.clone();
+                    
+                    homeScreenKitModel.scale.set(0.3, 0.3, 0.3);
+                    homeScreenKitModel.rotation.x = Math.PI / 2;
+                    homeScreenKitModel.position.set(0, 0, 0);
+                    homeScreenScene.add(homeScreenKitModel);
+                    
+                    
+                    function animateHomeScreen() {
+                        if (homeScreenKitModel && homeScreenModelContainer.offsetParent !== null) {
+                            requestAnimationFrame(animateHomeScreen);
+                            homeScreenKitModel.rotation.y += 0.01;
+                            homeScreenRenderer.render(homeScreenScene, homeScreenCamera);
+                        }
+                    }
+                    animateHomeScreen();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading home screen first aid kit:', error);
+                }
+            );
+        }
+        
+        
+        initHomeScreenModel();
+        
+        
+        cutsBtn.addEventListener('click', () => {
+            startProcedure('cuts');
+        });
+        
+        beeStingBtn.addEventListener('click', () => {
+            startProcedure('beeSting');
+        });
+        
+        snakebiteBtn.addEventListener('click', () => {
+            startProcedure('snakebite');
+        });
+        
+        
+        function startProcedure(procedureKey) {
+            currentProcedure = procedures[procedureKey];
+            if (!currentProcedure) {
+                console.error('Unknown procedure:', procedureKey);
+                return;
+            }
+            
+            
+            homeScreen.style.display = 'none';
+            
+            
+            initializeAIAssistant();
+            
+            
+            video.style.display = 'block';
+            canvas.style.display = 'block';
+            
+            
+            currentStep = 1;
+            stepsCompleted = {};
+            currentProcedure.steps.forEach((step, index) => {
+                stepsCompleted[`step${step.number}`] = false;
+            });
+            
+            
+            setupProcedureUI();
+            
+            
+            initCamera();
+        }
+        
+        
+        function setupProcedureUI() {
+            
+            procedureTitle.textContent = currentProcedure.name;
+            
+            
+            stepsContainer.innerHTML = '';
+            currentProcedure.steps.forEach((step) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.id = `step${step.number}`;
+                stepDiv.className = 'step';
+                if (step.number === 1) {
+                    stepDiv.classList.add('current');
+                }
+                stepDiv.textContent = `Step ${step.number}: ${step.text}`;
+                stepsContainer.appendChild(stepDiv);
+            });
+            
+            
+        }
+        
+        
+        async function initCamera() {
+            try {
+                loadingDiv.textContent = 'Requesting camera access...';
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
+                video.srcObject = stream;
+                video.play();
+
+                video.addEventListener('loadedmetadata', () => {
+                    videoWidth = video.videoWidth;
+                    videoHeight = video.videoHeight;
+                    initThreeJS();
+                });
+
+            } catch (err) {
+                console.error('Camera error:', err);
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                let errorMsg = '<h3>Camera Access Required</h3>';
+                if (err.name === 'NotAllowedError') {
+                    errorMsg += '<p>Please allow camera access in your browser settings and refresh the page.</p>';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg += '<p>No camera found. Please connect a camera and try again.</p>';
+                } else {
+                    errorMsg += '<p>Error: ' + err.message + '</p>';
+                }
+                errorDiv.innerHTML = errorMsg;
+            }
+        }
+
+        
+        function initThreeJS() {
+            loadingDiv.textContent = 'Loading 3D model...';
+
+            
+            scene = new THREE.Scene();
+            
+            
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(75, aspect, 0.01, 10000); 
+            camera.position.set(0, 0, 0);
+
+            
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
+                alpha: true,
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x000000, 0); 
+
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(0, 1, 0);
+            scene.add(directionalLight);
+
+            
+            const loader = new GLTFLoader();
+            const modelFile = currentProcedure.baseModel;
+            loader.load(
+                `/static/${modelFile}`,
+                (gltf) => {
+                    handModel = gltf.scene; 
+                    
+                    const isLeg = modelFile.includes('leg');
+                    const scale = isLeg ? 2.5 : 7.5; 
+                    handModel.scale.set(scale, scale, scale);
+                    handModel.position.set(0, 0, -2);
+                    handModel.rotation.set(0, 0, 0);
+                    handModel.visible = false;
+                    
+                    
+                    addWoundToHand(handModel, currentProcedure);
+                    
+                    
+                    woundPosition.set(0, 0.1, -1.95);
+                    
+                    scene.add(handModel);
+                    
+                    
+                    loadFirstAidObjects();
+                    
+                    
+                    loadFirstAidKit();
+                    
+                    loadingDiv.style.display = 'none';
+                    const modelName = modelFile.includes('leg') ? 'Leg' : 'Hand';
+                    statusText.textContent = `Tap "Place ${modelName}" to start the simulation`;
+                    placeButton.textContent = `Place ${modelName}`;
+                    placeButton.style.display = 'block';
+                    
+                    
+                    initDeviceOrientation();
+                    animate();
+                },
+                (progress) => {
+                    if (progress.total > 0) {
+                        const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                        loadingDiv.textContent = `Loading 3D model... ${percent}%`;
+                    }
+                },
+                (error) => {
+                    console.error(`❌ Error loading ${modelFile}:`, error);
+                    console.error('Error details:', {
+                        message: error.message,
+                        url: error.url || `/static/${modelFile}`,
+                        type: error.type
+                    });
+                    loadingDiv.style.display = 'none';
+                    errorDiv.style.display = 'block';
+                    errorDiv.innerHTML = `<h3>Error Loading Model</h3><p>Could not load ${modelFile}.</p><p>Check console for details.</p><p>Error: ${error.message || 'Unknown error'}</p>`;
+                }
+            );
+
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            
+            animate();
+        }
+
+        
+        function addWoundToHand(handModel, procedure) {
+            console.log('🔴 Adding red wound to hand mesh by modifying vertex colors...');
+            
+            
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
+            let totalVertices = 0;
+            
+            
+            handModel.traverse((child) => {
+                if (child.isMesh) {
+                    const geometry = child.geometry;
+                    if (!geometry) return;
+                    
+                    const positions = geometry.attributes.position;
+                    if (!positions) return;
+                    
+                    const vertexCount = positions.count;
+                    totalVertices += vertexCount;
+                    
+                    for (let i = 0; i < vertexCount; i++) {
+                        const x = positions.getX(i);
+                        const y = positions.getY(i);
+                        const z = positions.getZ(i);
+                        
+                        minX = Math.min(minX, x);
+                        maxX = Math.max(maxX, x);
+                        minY = Math.min(minY, y);
+                        maxY = Math.max(maxY, y);
+                        minZ = Math.min(minZ, z);
+                        maxZ = Math.max(maxZ, z);
+                    }
+                }
+            });
+            
+            console.log(`📊 Hand bounds - X: [${minX.toFixed(3)}, ${maxX.toFixed(3)}], Y: [${minY.toFixed(3)}, ${maxY.toFixed(3)}], Z: [${minZ.toFixed(3)}, ${maxZ.toFixed(3)}]`);
+            console.log(`📊 Total vertices: ${totalVertices}`);
+            
+            
+            
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            const centerZ = (minZ + maxZ) / 2;
+            
+            
+            
+            woundLocalCenter.set(
+                centerX,
+                centerY + (maxY - minY) * 0.1, 
+                centerZ  
+            );
+            
+            woundRadius = Math.max(
+                (maxX - minX) * 0.05,  
+                (maxY - minY) * 0.05,
+                (maxZ - minZ) * 0.05
+            ); 
+            
+            console.log(`🎯 Wound center (local): (${woundLocalCenter.x.toFixed(3)}, ${woundLocalCenter.y.toFixed(3)}, ${woundLocalCenter.z.toFixed(3)}), radius: ${woundRadius.toFixed(3)}`);
+            
+            
+            handModel.traverse((child) => {
+                if (child.isMesh) {
+                    console.log('📦 Processing mesh:', child.name || 'unnamed');
+                    
+                    const geometry = child.geometry;
+                    if (!geometry) return;
+                    
+                    
+                    const positions = geometry.attributes.position;
+                    if (!positions) return;
+                    
+                    const vertexCount = positions.count;
+                    console.log(`   Found ${vertexCount} vertices`);
+                    
+                    
+                    let colors = geometry.attributes.color;
+                    if (!colors) {
+                        
+                        const colorArray = new Float32Array(vertexCount * 3);
+                        for (let i = 0; i < vertexCount; i++) {
+                            colorArray[i * 3] = 1.0;     
+                            colorArray[i * 3 + 1] = 1.0; 
+                            colorArray[i * 3 + 2] = 1.0; 
+                        }
+                        colors = new THREE.BufferAttribute(colorArray, 3);
+                        geometry.setAttribute('color', colors);
+                        console.log('   Created color attribute');
+                    }
+                    
+                    
+                    let coloredVertices = 0;
+                    let minDistance = Infinity;
+                    let closestVertex = null;
+                    
+                    for (let i = 0; i < vertexCount; i++) {
+                        const vertex = new THREE.Vector3(
+                            positions.getX(i),
+                            positions.getY(i),
+                            positions.getZ(i)
+                        );
+                        
+                        
+                        const distance = vertex.distanceTo(woundLocalCenter);
+                        
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestVertex = vertex.clone();
+                        }
+                        
+                        if (distance < woundRadius) {
+                            
+                            const isBeeSting = procedure && procedure.name === 'Bee Sting';
+                            
+                            if (isBeeSting) {
+                                
+                                const intensity = 1.0 - (distance / woundRadius);
+                                
+                                
+                                const centerDotRadius = woundRadius * 0.3; 
+                                if (distance < centerDotRadius) {
+                                    
+                                    colors.setXYZ(i, 0.0, 0.0, 0.0); 
+                                } else {
+                                    
+                                    const lightRedIntensity = 0.75 + (intensity * 0.15); 
+                                    colors.setXYZ(i, lightRedIntensity, 0.5, 0.5); 
+                                }
+                            } else {
+                                
+                                const intensity = 1.0 - (distance / woundRadius);
+                                const redIntensity = Math.max(0.3, intensity); 
+                                
+                                
+                                colors.setXYZ(i, redIntensity, 0.1, 0.1); 
+                            }
+                            coloredVertices++;
+                        }
+                    }
+                    
+                    console.log(`    Colored ${coloredVertices} vertices red`);
+                    console.log(`    Closest vertex to wound center: (${closestVertex?.x.toFixed(3)}, ${closestVertex?.y.toFixed(3)}, ${closestVertex?.z.toFixed(3)}), distance: ${minDistance.toFixed(3)}`);
+                    
+                    
+                    if (child.material) {
+                        
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        materials.forEach((material) => {
+                            if (material) {
+                                material.vertexColors = true;
+                                material.needsUpdate = true;
+                            }
+                        });
+                        console.log('    Enabled vertex colors on material');
+                    }
+                    
+                    
+                    geometry.attributes.color.needsUpdate = true;
+                }
+            });
+            
+            console.log(' Red wound added to hand mesh via vertex colors');
+        }
+
+        
+        function initDeviceOrientation() {
+            if (typeof DeviceOrientationEvent !== 'undefined') {
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    
+                    deviceOrientationSupported = true;
+                } else {
+                    
+                    deviceOrientationSupported = true;
+                    window.addEventListener('deviceorientation', handleDeviceOrientation);
+                }
+            } else {
+                console.warn('Device orientation not supported');
+            }
+        }
+
+        
+        function setupTouchTracking() {
+            
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+            
+            
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('mouseleave', handleMouseUp);
+        }
+
+        
+        function handleTouchStart(event) {
+            event.preventDefault();
+            
+            if (event.touches.length > 0) {
+                const touch = event.touches[0];
+                
+                if (checkFirstAidKitClick(touch.clientX, touch.clientY)) {
+                    return;
+                }
+            }
+            
+            if (!draggedObject) return;
+            
+            
+            if (draggedObject.userData.stuckToWound) {
+                return;
+            }
+            
+            draggedObject.visible = true;
+            if (event.touches.length > 0) {
+                const touch = event.touches[0];
+                updateObjectPosition(touch.clientX, touch.clientY);
+                isDragging = true;
+            }
+        }
+
+        
+        function handleTouchMove(event) {
+            event.preventDefault();
+            if (event.touches.length > 0 && isDragging) {
+                if (draggedObject) {
+                    draggedObject.visible = true;
+                }
+                const touch = event.touches[0];
+                updateObjectPosition(touch.clientX, touch.clientY);
+            }
+        }
+
+        
+        function handleTouchEnd(event) {
+            event.preventDefault();
+            isDragging = false;
+            if (draggedObject) {
+                draggedObject.visible = true;
+            }
+        }
+
+        
+        function handleMouseDown(event) {
+            
+            if (checkFirstAidKitClick(event.clientX, event.clientY)) {
+                return;
+            }
+            
+            if (!draggedObject) return;
+            
+            
+            if (draggedObject.userData.stuckToWound) {
+                return;
+            }
+            
+            draggedObject.visible = true;
+            updateObjectPosition(event.clientX, event.clientY);
+            isDragging = true;
+        }
+
+        
+        function handleMouseMove(event) {
+            if (isDragging) {
+                if (draggedObject) {
+                    draggedObject.visible = true;
+                }
+                updateObjectPosition(event.clientX, event.clientY);
+            }
+        }
+
+        
+        function handleMouseUp(event) {
+            isDragging = false;
+            if (draggedObject) {
+                draggedObject.visible = true;
+            }
+        }
+
+        
+        function getBottomScreenPosition() {
+            if (!camera) {
+                return new THREE.Vector3(0, -0.5, -1.5); 
+            }
+            
+            
+            const distance = -1.5; 
+            const fov = camera.fov * (Math.PI / 180);
+            const aspect = camera.aspect;
+            const height = 2 * Math.tan(fov / 2) * Math.abs(distance);
+            const width = height * aspect;
+            
+            
+            
+            const bottomOffset = isMobile ? 0.3 : 0.25; 
+            const bottomPos = new THREE.Vector3(
+                0,                    
+                -height * bottomOffset,        
+                distance              
+            );
+            
+            console.log(`📍 BOTTOM POSITION CALCULATED:`);
+            console.log(`   FOV: ${camera.fov}°, Aspect: ${aspect.toFixed(3)}`);
+            console.log(`   Height: ${height.toFixed(3)}, Width: ${width.toFixed(3)}`);
+            console.log(`   Bottom position: (${bottomPos.x.toFixed(3)}, ${bottomPos.y.toFixed(3)}, ${bottomPos.z.toFixed(3)})`);
+            
+            return bottomPos;
+        }
+
+        
+        function updateObjectPosition(clientX, clientY) {
+            if (!draggedObject || !camera) {
+                return;
+            }
+            
+            
+            if (draggedObject.userData.stuckToWound) {
+                return;
+            }
+            
+            
+            draggedObject.visible = true;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+            
+            
+            
+            const distance = -1.5; 
+            
+            
+            const fov = camera.fov * (Math.PI / 180);
+            const aspect = camera.aspect;
+            const height = 2 * Math.tan(fov / 2) * Math.abs(distance);
+            const width = height * aspect;
+            
+            
+            const targetPosition = new THREE.Vector3(
+                x * width / 2,  
+                y * height / 2, 
+                distance        
+            );
+            
+            draggedObject.position.copy(targetPosition);
+            
+            
+            checkCollision(draggedObject);
+        }
+
+        
+        function loadFirstAidObjects() {
+            const loader = new GLTFLoader();
+            const objectsToLoad = new Map();
+            
+            
+            currentProcedure.steps.forEach(step => {
+                if (!objectsToLoad.has(step.objectType)) {
+                    objectsToLoad.set(step.objectType, step.objectFile);
+                }
+            });
+            
+            
+            objectsToLoad.forEach((file, type) => {
+                if (allObjects[type]) {
+                    console.log(`Object ${type} already loaded`);
+                    return;
+                }
+                
+                loader.load(`/static/${file}`, (gltf) => {
+                    const obj = gltf.scene;
+                    
+                    
+                    if (type === 'cotton' || type === 'bandaid') {
+                        obj.scale.set(0.1, 0.1, 0.1);
+                    } else if (type === 'bottle') {
+                        obj.scale.set(0.025, 0.025, 0.025); 
+                    } else if (type === 'antiseptic') {
+                        obj.scale.set(0.05, 0.05, 0.05); 
+                    } else if (type === 'tweezers') {
+                        obj.scale.set(0.1, 0.1, 0.1);
+                    } else if (type === 'ice') {
+                        obj.scale.set(0.00025, 0.00025, 0.00025); 
+                    } else if (type === 'cloth') {
+                        obj.scale.set(0.3, 0.3, 0.3); 
+                    } else if (type === 'splint') {
+                        obj.scale.set(0.005, 0.005, 0.005); 
+                    } else if (type === 'cellphone') {
+                        obj.scale.set(0.1, 0.1, 0.1);
+                    } else {
+                        obj.scale.set(0.1, 0.1, 0.1); 
+                    }
+                    
+                    obj.position.set(0, 0, -1.5);
+                    obj.visible = false;
+                    obj.userData.type = type;
+                    scene.add(obj);
+                    allObjects[type] = obj;
+                    objectVisibility[type] = false;
+                    console.log(`${type} loaded`);
+                }, undefined, (error) => {
+                    console.error(`Error loading ${type}:`, error);
+                });
+            });
+        }
+
+        
+        function loadFirstAidKit() {
+            const loader = new GLTFLoader();
+            loader.load(
+                '/static/first_aid_kit.glb',
+                (gltf) => {
+                    firstAidKitModel = gltf.scene;
+                    
+                    firstAidKitModel.scale.set(0.05, 0.05, 0.05);
+                    
+                    
+                    firstAidKitModel.rotation.x = Math.PI / 2; 
+                    
+                    
+                    const distance = -1.5; 
+                    const fov = camera.fov * (Math.PI / 180);
+                    const aspect = camera.aspect;
+                    const height = 2 * Math.tan(fov / 2) * Math.abs(distance);
+                    const width = height * aspect;
+                    const bottomOffset = 0.4; 
+                    const rightOffset = 0.35; 
+                    
+                    firstAidKitModel.position.set(
+                        width * rightOffset, 
+                        -height * bottomOffset, 
+                        distance 
+                    );
+                    
+                    firstAidKitModel.visible = false; 
+                    firstAidKitModel.userData.isFirstAidKit = true;
+                    scene.add(firstAidKitModel);
+                    console.log('First aid kit model loaded');
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading first aid kit:', error);
+                }
+            );
+        }
+        
+        
+        function setupButtonHandlers() {
+            
+        }
+        
+        
+        function checkFirstAidKitClick(clientX, clientY) {
+            if (!firstAidKitModel || !firstAidKitModel.visible) return false;
+            
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(firstAidKitModel, true);
+            
+            if (intersects.length > 0) {
+                showObjectSelectionScreen();
+                return true;
+            }
+            return false;
+        }
+        
+        
+        function showObjectSelectionScreen() {
+            
+            objectSelectionGrid.innerHTML = '';
+            
+            
+            currentProcedure.steps.forEach(step => {
+                const item = document.createElement('div');
+                item.className = 'objectSelectionItem';
+                item.dataset.objectType = step.objectType;
+                
+                
+                const icon = document.createElement('div');
+                icon.className = 'objectIcon';
+                
+                const iconMap = {
+                    'cotton': '🧻',
+                    'bottle': '💧',
+                    'bandaid': '🩹',
+                    'tweezers': '🔧',
+                    'ice': '🧊',
+                    'cloth': '🧵',
+                    'splint': '🩼',
+                    'cellphone': '📱'
+                };
+                icon.textContent = iconMap[step.objectType] || '📦';
+                
+                
+                const name = document.createElement('div');
+                name.className = 'objectName';
+                name.textContent = step.buttonText;
+                
+                item.appendChild(icon);
+                item.appendChild(name);
+                
+                
+                item.addEventListener('click', () => {
+                    selectObject(step.objectType);
+                });
+                
+                objectSelectionGrid.appendChild(item);
+            });
+            
+            
+            objectSelectionScreen.style.display = 'flex';
+        }
+        
+        
+        function hideObjectSelectionScreen() {
+            objectSelectionScreen.style.display = 'none';
+        }
+        
+        
+        function selectObject(objectType) {
+            hideObjectSelectionScreen();
+            toggleObject(objectType);
+        }
+        
+        
+        function toggleObject(objectType) {
+            const obj = allObjects[objectType];
+            if (!obj) {
+                console.error(`Object ${objectType} not found`);
+                return;
+            }
+            
+            
+            currentProcedure.steps.forEach(step => {
+                if (step.objectType !== objectType) {
+                    const otherObj = allObjects[step.objectType];
+                    if (otherObj) {
+                        otherObj.visible = false;
+                        objectVisibility[step.objectType] = false;
+                    }
+                    
+                }
+            });
+            
+            
+            objectVisibility[objectType] = !objectVisibility[objectType];
+            obj.visible = objectVisibility[objectType];
+            
+            if (objectVisibility[objectType]) {
+                draggedObject = obj;
+                const bottomPosition = getBottomScreenPosition();
+                obj.position.copy(bottomPosition);
+                console.log(`🎯 ${objectType.toUpperCase()} POSITIONED AT: (${obj.position.x.toFixed(3)}, ${obj.position.y.toFixed(3)}, ${obj.position.z.toFixed(3)})`);
+                
+                
+                if (obj.userData) {
+                    obj.userData.collisionTriggered = false;
+                    const gracePeriod = isMobile ? 1000 : 500;
+                    obj.userData.lastCollisionCheck = Date.now() + gracePeriod;
+                    console.log(`⏳ Collision disabled for ${objectType} for ${gracePeriod}ms (${isMobile ? 'mobile' : 'desktop'})`);
+                }
+            } else {
+                if (draggedObject === obj) draggedObject = null;
+            }
+            
+            
+        }
+
+        
+        function changeObjectColor(object, color) {
+            if (!object) return;
+            
+            object.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach((material) => {
+                        if (material) {
+                            if (color === null) {
+                                
+                                if (material.userData.originalColor) {
+                                    material.color.copy(material.userData.originalColor);
+                                } else {
+                                    material.color.set(0xffffff); 
+                                }
+                            } else {
+                                
+                                if (!material.userData.originalColor) {
+                                    material.userData.originalColor = material.color.clone();
+                                }
+                                
+                                material.color.set(color);
+                            }
+                            material.needsUpdate = true;
+                        }
+                    });
+                }
+            });
+        }
+        
+        
+        function createWaterDrops(bottlePosition) {
+            
+            removeWaterDrops();
+            
+            
+            waterDropGroup = new THREE.Group();
+            waterDrops = [];
+            
+            
+            const dropCount = 10;
+            const dropRadius = 0.15; 
+            
+            for (let i = 0; i < dropCount; i++) {
+                
+                const dropGeometry = new THREE.SphereGeometry(0.015, 8, 8);
+                const dropMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x4FC3F7, 
+                    transparent: true,
+                    opacity: 0.8,
+                    emissive: 0x2196F3,
+                    emissiveIntensity: 0.4
+                });
+                
+                const drop = new THREE.Mesh(dropGeometry, dropMaterial);
+                
+                
+                const angle = (Math.PI * 2 * i) / dropCount + Math.random() * 0.5;
+                const distance = dropRadius * (0.6 + Math.random() * 0.4);
+                const height = (Math.random() - 0.5) * 0.15;
+                
+                
+                drop.position.set(
+                    Math.cos(angle) * distance,
+                    height,
+                    Math.sin(angle) * distance
+                );
+                
+                
+                drop.userData.relativeOffset = drop.position.clone(); 
+                drop.userData.angle = angle;
+                drop.userData.distance = distance;
+                drop.userData.speed = 0.8 + Math.random() * 0.7; 
+                drop.userData.phase = Math.random() * Math.PI * 2; 
+                
+                
+                drop.position.add(bottlePosition);
+                
+                waterDrops.push(drop);
+                waterDropGroup.add(drop);
+            }
+            
+            scene.add(waterDropGroup);
+            console.log(`💧 Created ${dropCount} water drops around bottle`);
+        }
+        
+        
+        function animateWaterDrops(bottlePosition) {
+            if (!waterDropGroup || waterDrops.length === 0) return;
+            
+            const time = Date.now() * 0.001; 
+            
+            waterDrops.forEach((drop, index) => {
+                
+                const relativeOffset = drop.userData.relativeOffset;
+                const angle = drop.userData.angle;
+                const distance = drop.userData.distance;
+                
+                
+                const relativeX = Math.cos(angle) * distance;
+                const relativeZ = Math.sin(angle) * distance;
+                
+                
+                const bounce = Math.sin(time * drop.userData.speed + drop.userData.phase) * 0.04;
+                const relativeY = relativeOffset.y + bounce;
+                
+                
+                drop.position.set(
+                    bottlePosition.x + relativeX,
+                    bottlePosition.y + relativeY,
+                    bottlePosition.z + relativeZ
+                );
+                
+                
+                drop.rotation.x += 0.02;
+                drop.rotation.y += 0.02;
+            });
+        }
+        
+        
+        function removeWaterDrops() {
+            if (waterDropGroup) {
+                scene.remove(waterDropGroup);
+                waterDrops.forEach(drop => {
+                    drop.geometry.dispose();
+                    drop.material.dispose();
+                });
+                waterDrops = [];
+                waterDropGroup = null;
+                console.log('💧 Removed water drops');
+            }
+        }
+        
+        
+        function removeBlackDotFromWound() {
+            if (!handModel || currentProcedure.name !== 'Bee Sting') return;
+            
+            console.log('🔧 Removing black dot from bee sting wound...');
+            
+            handModel.traverse((child) => {
+                if (child.isMesh) {
+                    const geometry = child.geometry;
+                    if (!geometry) return;
+                    
+                    const colors = geometry.attributes.color;
+                    if (!colors) return;
+                    
+                    const positions = geometry.attributes.position;
+                    if (!positions) return;
+                    
+                    const vertexCount = positions.count;
+                    let updatedVertices = 0;
+                    
+                    for (let i = 0; i < vertexCount; i++) {
+                        const vertex = new THREE.Vector3(
+                            positions.getX(i),
+                            positions.getY(i),
+                            positions.getZ(i)
+                        );
+                        
+                        const distance = vertex.distanceTo(woundLocalCenter);
+                        
+                        if (distance < woundRadius) {
+                            
+                            const centerDotRadius = woundRadius * 0.3;
+                            if (distance < centerDotRadius) {
+                                
+                                const intensity = 1.0 - (distance / woundRadius);
+                                const lightRedIntensity = 0.75 + (intensity * 0.15); 
+                                colors.setXYZ(i, lightRedIntensity, 0.5, 0.5); 
+                                updatedVertices++;
+                            }
+                        }
+                    }
+                    
+                    if (updatedVertices > 0) {
+                        colors.needsUpdate = true;
+                        console.log(`    Removed black dot from ${updatedVertices} vertices`);
+                    }
+                }
+            });
+        }
+        
+        
+        function reduceWoundColor() {
+            if (!handModel) return;
+            
+            console.log('💧 Reducing wound color after washing...');
+            
+            handModel.traverse((child) => {
+                if (child.isMesh) {
+                    const geometry = child.geometry;
+                    if (!geometry) return;
+                    
+                    const colors = geometry.attributes.color;
+                    if (!colors) return;
+                    
+                    const positions = geometry.attributes.position;
+                    if (!positions) return;
+                    
+                    const vertexCount = positions.count;
+                    let fadedVertices = 0;
+                    
+                    for (let i = 0; i < vertexCount; i++) {
+                        const vertex = new THREE.Vector3(
+                            positions.getX(i),
+                            positions.getY(i),
+                            positions.getZ(i)
+                        );
+                        
+                        const distance = vertex.distanceTo(woundLocalCenter);
+                        
+                        if (distance < woundRadius) {
+                            
+                            const r = colors.getX(i);
+                            const g = colors.getY(i);
+                            const b = colors.getZ(i);
+                            
+                            
+                            if (r > 0.3 && g < 0.2 && b < 0.2) {
+                                
+                                const newR = Math.max(0.5, r * 0.5); 
+                                const newG = Math.min(0.5, g + 0.2); 
+                                const newB = Math.min(0.5, b + 0.2); 
+                                
+                                colors.setXYZ(i, newR, newG, newB);
+                                fadedVertices++;
+                            }
+                        }
+                    }
+                    
+                    if (fadedVertices > 0) {
+                        colors.needsUpdate = true;
+                        console.log(`     Faded ${fadedVertices} wound vertices`);
+                    }
+                }
+            });
+        }
+        
+        
+        function checkCollision(object) {
+            if (!object || !object.userData.type || !handModel || !isPlaced) {
+                return;
+            }
+            
+            
+            if (object.userData.lastCollisionCheck && Date.now() < object.userData.lastCollisionCheck) {
+                const timeLeft = object.userData.lastCollisionCheck - Date.now();
+                if (!object.userData.gracePeriodLogged) {
+                    console.log(` COLLISION CHECK SKIPPED - ${object.userData.type} is in grace period (${timeLeft.toFixed(0)}ms remaining)`);
+                    object.userData.gracePeriodLogged = true;
+                }
+                return; 
+            }
+            
+            
+            if (object.userData.gracePeriodLogged && (!object.userData.lastCollisionCheck || Date.now() >= object.userData.lastCollisionCheck)) {
+                console.log(` Grace period ended for ${object.userData.type}, collision detection enabled`);
+                object.userData.gracePeriodLogged = false;
+            }
+            
+            
+            object.visible = true;
+            
+            
+            
+            const handWorldPos = new THREE.Vector3();
+            handModel.getWorldPosition(handWorldPos);
+            
+            
+            const handWorldScale = new THREE.Vector3();
+            handModel.getWorldScale(handWorldScale);
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            const scaledX = woundLocalCenter.x * handWorldScale.x;
+            const scaledY = woundLocalCenter.y * handWorldScale.y;
+            
+            
+            
+            
+            const objectZ = -1.5; 
+            
+            woundPosition.set(
+                handWorldPos.x + scaledX,
+                handWorldPos.y + scaledY,
+                objectZ  
+            );
+            
+            const objectPos = object.position;
+            const distance = objectPos.distanceTo(woundPosition);
+            
+            
+            const handScale = handModel.scale.x; 
+            const scaledWoundRadius = woundRadius * handScale;
+            
+            
+            const radiusMultiplier = isMobile ? 0.8 : 4.0; 
+            const collisionRadius = scaledWoundRadius * radiusMultiplier;
+            
+            if (!object.userData.radiusLogged) {
+                console.log(` Device: ${isMobile ? 'MOBILE' : 'DESKTOP'}, Collision radius multiplier: ${radiusMultiplier}x`);
+                object.userData.radiusLogged = true;
+            }
+            
+            
+            if (!object.userData.lastLogTime) object.userData.lastLogTime = 0;
+            const now = Date.now();
+            if (now - object.userData.lastLogTime > 500) { 
+                console.log(`\n ========== COLLISION CHECK ==========`);
+                console.log(`   Object: ${object.userData.type}`);
+                console.log(`   Current step: ${currentStep}`);
+                console.log(`   Object position: (${objectPos.x.toFixed(3)}, ${objectPos.y.toFixed(3)}, ${objectPos.z.toFixed(3)})`);
+                console.log(`   Hand world position: (${handWorldPos.x.toFixed(3)}, ${handWorldPos.y.toFixed(3)}, ${handWorldPos.z.toFixed(3)})`);
+                console.log(`   Hand world scale: (${handWorldScale.x.toFixed(3)}, ${handWorldScale.y.toFixed(3)}, ${handWorldScale.z.toFixed(3)})`);
+                console.log(`   Wound local center: (${woundLocalCenter.x.toFixed(3)}, ${woundLocalCenter.y.toFixed(3)}, ${woundLocalCenter.z.toFixed(3)})`);
+                console.log(`   Scaled offsets: (${scaledX.toFixed(3)}, ${scaledY.toFixed(3)}, Z=${objectZ.toFixed(3)})`);
+                console.log(`   Wound world position: (${woundPosition.x.toFixed(3)}, ${woundPosition.y.toFixed(3)}, ${woundPosition.z.toFixed(3)})`);
+                console.log(`   Distance: ${distance.toFixed(3)}`);
+                console.log(`   Wound radius (local): ${woundRadius.toFixed(3)}`);
+                console.log(`   Hand scale: ${handScale.toFixed(3)}`);
+                console.log(`   Scaled wound radius: ${scaledWoundRadius.toFixed(3)}`);
+                console.log(`   Collision radius: ${collisionRadius.toFixed(3)}`);
+                console.log(`   Collision? ${distance < collisionRadius ? 'YES ⚠️' : 'NO ✓'}`);
+                console.log(`   ======================================\n`);
+                object.userData.lastLogTime = now;
+            }
+            
+            if (distance < collisionRadius) {
+                
+                const currentStepConfig = currentProcedure.steps.find(s => s.number === currentStep);
+                const isCottonStep = currentStepConfig && currentStepConfig.objectType === 'cotton' && object.userData.type === 'cotton';
+                const isBottleStep = currentStepConfig && currentStepConfig.objectType === 'bottle' && object.userData.type === 'bottle';
+                const isAntisepticStep = currentStepConfig && currentStepConfig.objectType === 'antiseptic' && object.userData.type === 'antiseptic';
+                const isBandaidStep = currentStepConfig && currentStepConfig.objectType === 'bandaid' && object.userData.type === 'bandaid';
+                const isTweezersStep = currentStepConfig && currentStepConfig.objectType === 'tweezers' && object.userData.type === 'tweezers';
+                const isCutsProcedure = currentProcedure.name === 'Cuts';
+                const isBeeStingProcedure = currentProcedure.name === 'Bee Sting';
+                
+                if (isCottonStep && isCutsProcedure) {
+                    
+                    if (!object.userData.holdStartTime) {
+                        
+                        object.userData.holdStartTime = Date.now();
+                        object.userData.holdDuration = 0;
+                        console.log('🎯 Cotton ball touching wound - start holding timer');
+                        
+                        
+                        changeObjectColor(object, 0xff0000); 
+                        
+                        
+                        progressBar.style.display = 'block';
+                        progressBarText.textContent = 'Hold cotton ball on wound...';
+                    }
+                    
+                    
+                    object.userData.holdDuration = (Date.now() - object.userData.holdStartTime) / 1000; 
+                    const requiredHoldTime = 7; 
+                    const progress = Math.min((object.userData.holdDuration / requiredHoldTime) * 100, 100);
+                    
+                    
+                    progressBarFill.style.width = progress + '%';
+                    const remainingTime = Math.max(0, requiredHoldTime - object.userData.holdDuration);
+                    progressBarFill.textContent = remainingTime > 0 ? remainingTime.toFixed(1) + 's' : 'Complete!';
+                    
+                    
+                    if (object.userData.holdDuration >= requiredHoldTime && !object.userData.collisionTriggered) {
+                        console.log(' Cotton ball held for 7 seconds!');
+                        object.userData.collisionTriggered = true;
+                        progressBar.style.display = 'none';
+                        changeObjectColor(object, null); 
+                        handleStepCompletion(object.userData.type);
+                        setTimeout(() => {
+                            object.userData.collisionTriggered = false;
+                            object.userData.holdStartTime = null;
+                            object.userData.holdDuration = 0;
+                        }, 2000);
+                    }
+                } else if (isBottleStep && isCutsProcedure) {
+                    
+                    if (!object.userData.holdStartTime) {
+                        
+                        object.userData.holdStartTime = Date.now();
+                        object.userData.holdDuration = 0;
+                        console.log(' Water bottle touching wound - start washing timer');
+                        
+                        
+                        createWaterDrops(object.position);
+                        object.userData.waterDropsActive = true;
+                        
+                        
+                        progressBar.style.display = 'block';
+                        progressBarText.textContent = 'Washing wound with water...';
+                    }
+                    
+                    
+                    
+                    
+                    object.userData.holdDuration = (Date.now() - object.userData.holdStartTime) / 1000; 
+                    const requiredHoldTime = 5; 
+                    const progress = Math.min((object.userData.holdDuration / requiredHoldTime) * 100, 100);
+                    
+                    
+                    progressBarFill.style.width = progress + '%';
+                    const remainingTime = Math.max(0, requiredHoldTime - object.userData.holdDuration);
+                    progressBarFill.textContent = remainingTime > 0 ? remainingTime.toFixed(1) + 's' : 'Complete!';
+                    
+                    
+                    if (object.userData.holdDuration >= requiredHoldTime && !object.userData.collisionTriggered) {
+                        console.log('Water bottle held for 5 seconds!');
+                        object.userData.collisionTriggered = true;
+                        progressBar.style.display = 'none';
+                        
+                        removeWaterDrops();
+                        object.userData.waterDropsActive = false;
+                        
+                        reduceWoundColor();
+                        handleStepCompletion(object.userData.type);
+                        setTimeout(() => {
+                            object.userData.collisionTriggered = false;
+                            object.userData.holdStartTime = null;
+                            object.userData.holdDuration = 0;
+                        }, 2000);
+                    }
+                } else if (isAntisepticStep && isCutsProcedure) {
+                    
+                    if (!object.userData.holdStartTime) {
+                        
+                        object.userData.holdStartTime = Date.now();
+                        object.userData.holdDuration = 0;
+                        console.log(' Antiseptic touching wound - start rubbing timer');
+                        
+                        
+                        progressBar.style.display = 'block';
+                        progressBarText.textContent = 'Rubbing antiseptic on wound...';
+                    }
+                    
+                    
+                    object.userData.holdDuration = (Date.now() - object.userData.holdStartTime) / 1000; 
+                    const requiredHoldTime = 3; 
+                    const progress = Math.min((object.userData.holdDuration / requiredHoldTime) * 100, 100);
+                    
+                    
+                    progressBarFill.style.width = progress + '%';
+                    const remainingTime = Math.max(0, requiredHoldTime - object.userData.holdDuration);
+                    progressBarFill.textContent = remainingTime > 0 ? remainingTime.toFixed(1) + 's' : 'Complete!';
+                    
+                    
+                    if (object.userData.holdDuration >= requiredHoldTime && !object.userData.collisionTriggered) {
+                        console.log(' Antiseptic held for 3 seconds!');
+                        object.userData.collisionTriggered = true;
+                        progressBar.style.display = 'none';
+                        handleStepCompletion(object.userData.type);
+                        setTimeout(() => {
+                            object.userData.collisionTriggered = false;
+                            object.userData.holdStartTime = null;
+                            object.userData.holdDuration = 0;
+                        }, 2000);
+                    }
+                } else if (isTweezersStep && isBeeStingProcedure) {
+                    
+                    if (!object.userData.holdStartTime) {
+                        
+                        object.userData.holdStartTime = Date.now();
+                        object.userData.holdDuration = 0;
+                        object.userData.lastStablePosition = handWorldPos.clone();
+                        console.log(' Tweezers touching wound - start careful removal timer');
+                        
+                        
+                        progressBar.style.display = 'block';
+                        progressBarText.textContent = 'Carefully remove stinger with tweezers...';
+                    }
+                    
+                    
+                    const currentHandPos = handWorldPos.clone();
+                    const movementDistance = currentHandPos.distanceTo(object.userData.lastStablePosition || currentHandPos);
+                    const movementThreshold = 0.15; 
+                    
+                    if (movementDistance > movementThreshold) {
+                        
+                        console.log(' Vigorous movement detected - canceling tweezers progress');
+                        object.userData.holdStartTime = null;
+                        object.userData.holdDuration = 0;
+                        progressBar.style.display = 'none';
+                        progressBarFill.style.width = '0%';
+                        showCompletionMessage('Tweezers should be carefully used! Keep hand steady.', 2000);
+                        object.userData.lastStablePosition = currentHandPos.clone();
+                        return; 
+                    }
+                    
+                    
+                    if (!object.userData.lastStablePosition) {
+                        object.userData.lastStablePosition = currentHandPos.clone();
+                    } else {
+                        
+                        object.userData.lastStablePosition.lerp(currentHandPos, 0.1);
+                    }
+                    
+                    
+                    object.userData.holdDuration = (Date.now() - object.userData.holdStartTime) / 1000; 
+                    const requiredHoldTime = 5; 
+                    const progress = Math.min((object.userData.holdDuration / requiredHoldTime) * 100, 100);
+                    
+                    
+                    progressBarFill.style.width = progress + '%';
+                    const remainingTime = Math.max(0, requiredHoldTime - object.userData.holdDuration);
+                    progressBarFill.textContent = remainingTime > 0 ? remainingTime.toFixed(1) + 's' : 'Complete!';
+                    
+                    
+                    if (object.userData.holdDuration >= requiredHoldTime && !object.userData.collisionTriggered) {
+                        console.log(' Tweezers held steadily for 5 seconds!');
+                        object.userData.collisionTriggered = true;
+                        progressBar.style.display = 'none';
+                        
+                        removeBlackDotFromWound();
+                        handleStepCompletion(object.userData.type);
+                        setTimeout(() => {
+                            object.userData.collisionTriggered = false;
+                            object.userData.holdStartTime = null;
+                            object.userData.holdDuration = 0;
+                            object.userData.lastStablePosition = null;
+                        }, 2000);
+                    }
+                } else if (isBottleStep && isBeeStingProcedure) {
+                    
+                    if (!object.userData.holdStartTime) {
+                        
+                        object.userData.holdStartTime = Date.now();
+                        object.userData.holdDuration = 0;
+                        console.log(' Water bottle touching wound - start washing timer');
+                        
+                        
+                        createWaterDrops(object.position);
+                        object.userData.waterDropsActive = true;
+                        
+                        
+                        progressBar.style.display = 'block';
+                        progressBarText.textContent = 'Washing wound with water...';
+                    }
+                    
+                    
+                    
+                    
+                    object.userData.holdDuration = (Date.now() - object.userData.holdStartTime) / 1000; 
+                    const requiredHoldTime = 5; 
+                    const progress = Math.min((object.userData.holdDuration / requiredHoldTime) * 100, 100);
+                    
+                    
+                    progressBarFill.style.width = progress + '%';
+                    const remainingTime = Math.max(0, requiredHoldTime - object.userData.holdDuration);
+                    progressBarFill.textContent = remainingTime > 0 ? remainingTime.toFixed(1) + 's' : 'Complete!';
+                    
+                    
+                    if (object.userData.holdDuration >= requiredHoldTime && !object.userData.collisionTriggered) {
+                        console.log(' Water bottle held for 5 seconds!');
+                        object.userData.collisionTriggered = true;
+                        progressBar.style.display = 'none';
+                        
+                        removeWaterDrops();
+                        object.userData.waterDropsActive = false;
+                        handleStepCompletion(object.userData.type);
+                        setTimeout(() => {
+                            object.userData.collisionTriggered = false;
+                            object.userData.holdStartTime = null;
+                            object.userData.holdDuration = 0;
+                        }, 2000);
+                    }
+                } else if (isBandaidStep && isCutsProcedure) {
+                    
+                    if (!object.userData.collisionTriggered) {
+                        console.log(' Bandaid touching wound - sticking to wound');
+                        object.userData.collisionTriggered = true;
+                        
+                        
+                        object.position.copy(woundPosition);
+                        object.userData.stuckToWound = true;
+                        
+                        
+                        if (draggedObject === object) {
+                            draggedObject = null;
+                        }
+                        
+                        handleStepCompletion(object.userData.type);
+                        setTimeout(() => {
+                            object.userData.collisionTriggered = false;
+                        }, 2000);
+                    }
+                } else {
+                    
+                    if (!object.userData.collisionTriggered) {
+                        console.log(`\n COLLISION DETECTED! `);
+                        console.log(`   Object: ${object.userData.type}`);
+                        console.log(`   Distance: ${distance.toFixed(3)}`);
+                        console.log(`   Collision radius: ${collisionRadius.toFixed(3)}`);
+                        console.log(`   Current step: ${currentStep}`);
+                        console.log(`   Object pos: (${objectPos.x.toFixed(3)}, ${objectPos.y.toFixed(3)}, ${objectPos.z.toFixed(3)})`);
+                        console.log(`   Wound pos: (${woundPosition.x.toFixed(3)}, ${woundPosition.y.toFixed(3)}, ${woundPosition.z.toFixed(3)})`);
+                        console.log(`   Hand pos: (${handWorldPos.x.toFixed(3)}, ${handWorldPos.y.toFixed(3)}, ${handWorldPos.z.toFixed(3)})`);
+                        console.log(`   \n`);
+                        
+                        object.userData.collisionTriggered = true;
+                        handleStepCompletion(object.userData.type);
+                        setTimeout(() => {
+                            object.userData.collisionTriggered = false;
+                        }, 2000);
+                    }
+                }
+            } else {
+                
+                if (object.userData.type === 'cotton' && object.userData.holdStartTime) {
+                    console.log('⚠️ Cotton ball moved away from wound - resetting timer');
+                    object.userData.holdStartTime = null;
+                    object.userData.holdDuration = 0;
+                    progressBar.style.display = 'none';
+                    progressBarFill.style.width = '0%';
+                    changeObjectColor(object, null); 
+                } else if (object.userData.type === 'bottle' && object.userData.holdStartTime) {
+                    console.log(' Water bottle moved away from wound - resetting timer');
+                    object.userData.holdStartTime = null;
+                    object.userData.holdDuration = 0;
+                    object.userData.waterDropsActive = false;
+                    progressBar.style.display = 'none';
+                    progressBarFill.style.width = '0%';
+                    
+                    removeWaterDrops();
+                } else if (object.userData.type === 'tweezers' && object.userData.holdStartTime) {
+                    console.log(' Tweezers moved away from wound - resetting timer');
+                    object.userData.holdStartTime = null;
+                    object.userData.holdDuration = 0;
+                    object.userData.lastStablePosition = null;
+                    progressBar.style.display = 'none';
+                    progressBarFill.style.width = '0%';
+                } else if (object.userData.type === 'antiseptic' && object.userData.holdStartTime) {
+                    console.log(' Antiseptic moved away from wound - resetting timer');
+                    object.userData.holdStartTime = null;
+                    object.userData.holdDuration = 0;
+                    progressBar.style.display = 'none';
+                    progressBarFill.style.width = '0%';
+                }
+                object.userData.collisionTriggered = false;
+            }
+        }
+
+        
+        function handleStepCompletion(objectType) {
+            console.log(` handleStepCompletion - Object: ${objectType}, Current Step: ${currentStep}`);
+            
+            
+            const currentStepConfig = currentProcedure.steps.find(s => s.number === currentStep);
+            if (!currentStepConfig) {
+                console.error(`Step ${currentStep} not found in procedure`);
+                return;
+            }
+            
+            
+            if (currentStepConfig.objectType === objectType && !stepsCompleted[`step${currentStep}`]) {
+                console.log(`Step ${currentStep} (${currentStepConfig.text}) completed!`);
+                stepsCompleted[`step${currentStep}`] = true;
+                
+                
+                let message = '';
+                if (objectType === 'cotton') {
+                    message = 'Cotton ball applied to wound!';
+                } else if (objectType === 'bottle') {
+                    message = 'Wound washed with water!';
+                } else if (objectType === 'antiseptic') {
+                    message = 'Antiseptic applied to wound!';
+                } else if (objectType === 'tweezers') {
+                    message = 'Stinger removed with tweezers!';
+                } else if (objectType === 'ice') {
+                    message = 'Ice cube applied!';
+                } else if (objectType === 'bandaid') {
+                    message = 'Bandaid applied!';
+                } else if (objectType === 'cloth') {
+                    message = 'Cloth wrapped on wound!';
+                } else if (objectType === 'splint') {
+                    message = 'Splint placed!';
+                } else if (objectType === 'cellphone') {
+                    message = 'Ambulance called!';
+                } else {
+                    message = `Step ${currentStep} completed!`;
+                }
+                
+                completeStep(currentStep, message);
+            } else {
+                console.log(` Wrong object or step already completed. Current step: ${currentStep}, Expected: ${currentStepConfig.objectType}, Got: ${objectType}`);
+                
+                showCompletionMessage(`Please use ${currentStepConfig.buttonText.toLowerCase()} for this step!`, 1500);
+                
+                requestAIErrorHint(currentStepConfig, objectType);
+            }
+        }
+
+        function completeStep(stepNum, message) {
+            console.log(` Completing step ${stepNum}`);
+            
+            const stepElement = document.getElementById(`step${stepNum}`);
+            if (stepElement) {
+                stepElement.classList.add('completed');
+                stepElement.classList.remove('current');
+            }
+            
+            
+            const stepConfig = currentProcedure.steps.find(s => s.number === stepNum);
+            if (stepConfig) {
+                const obj = allObjects[stepConfig.objectType];
+                if (obj) {
+                    obj.visible = false;
+                    objectVisibility[stepConfig.objectType] = false;
+                    if (draggedObject === obj) draggedObject = null;
+                }
+                
+            }
+            
+            
+            showCompletionMessage(message || `Step ${stepNum} completed!`, 2000);
+            
+            const totalSteps = currentProcedure.steps.length;
+            if (stepNum < totalSteps) {
+                
+                currentStep = stepNum + 1;
+                const nextStepElement = document.getElementById(`step${currentStep}`);
+                if (nextStepElement) {
+                    nextStepElement.classList.add('current');
+                }
+                console.log(` Moving to step ${currentStep}`);
+                
+                
+                requestAIStepTips();
+            } else {
+                
+                console.log('All steps completed!');
+                setTimeout(() => {
+                    showCompletionMessage('All steps completed! First aid procedure finished!', 4000);
+                }, 2000);
+            }
+        }
+
+        function showCompletionMessage(message, duration = 2000) {
+            completionMessage.textContent = message;
+            completionMessage.style.display = 'block';
+            setTimeout(() => {
+                completionMessage.style.display = 'none';
+            }, duration);
+        }
+
+        
+        function handleDeviceOrientation(event) {
+            if (!isPlaced) return;
+            
+            currentOrientation.alpha = event.alpha || 0; 
+            currentOrientation.beta = event.beta || 0;   
+            currentOrientation.gamma = event.gamma || 0; 
+        }
+
+        
+        placeButton.addEventListener('click', async () => {
+            if (!handModel) return;
+            
+            
+            if (deviceOrientationSupported && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const response = await DeviceOrientationEvent.requestPermission();
+                    if (response !== 'granted') {
+                        statusText.textContent = 'Orientation permission denied. AR anchoring may not work.';
+                        return;
+                    }
+                    window.addEventListener('deviceorientation', handleDeviceOrientation);
+                } catch (error) {
+                    console.error('Error requesting orientation permission:', error);
+                }
+            }
+            
+            isPlaced = true;
+            
+            
+            handModel.visible = true;
+            
+            
+            if (deviceOrientationSupported) {
+                initialOrientation.alpha = currentOrientation.alpha;
+                initialOrientation.beta = currentOrientation.beta;
+                initialOrientation.gamma = currentOrientation.gamma;
+            }
+            
+            
+            placedPosition.copy(handModel.position);
+            
+            
+            const handWorldPos = new THREE.Vector3();
+            handModel.getWorldPosition(handWorldPos);
+            const handWorldScale = new THREE.Vector3();
+            handModel.getWorldScale(handWorldScale);
+            
+            
+            const scaledX = woundLocalCenter.x * handWorldScale.x;
+            const scaledY = woundLocalCenter.y * handWorldScale.y;
+            const scaledZ = woundLocalCenter.z * 0.1; 
+            
+            woundPosition.set(
+                handWorldPos.x + scaledX,
+                handWorldPos.y + scaledY,
+                handWorldPos.z + scaledZ
+            );
+            
+            
+            const handScale = handWorldScale.x; 
+            const scaledWoundRadius = woundRadius * handScale;
+            const collisionRadius = scaledWoundRadius * 2.5; 
+            
+            console.log(' HAND PLACED - Collision setup:');
+            console.log(`   Hand position: (${handWorldPos.x.toFixed(2)}, ${handWorldPos.y.toFixed(2)}, ${handWorldPos.z.toFixed(2)})`);
+            console.log(`   Hand scale: (${handWorldScale.x.toFixed(2)}, ${handWorldScale.y.toFixed(2)}, ${handWorldScale.z.toFixed(2)})`);
+            console.log(`   Wound local center: (${woundLocalCenter.x.toFixed(3)}, ${woundLocalCenter.y.toFixed(3)}, ${woundLocalCenter.z.toFixed(3)})`);
+            console.log(`   Wound world position: (${woundPosition.x.toFixed(2)}, ${woundPosition.y.toFixed(2)}, ${woundPosition.z.toFixed(2)})`);
+            console.log(`   Wound radius (local): ${woundRadius.toFixed(3)}`);
+            console.log(`   Collision radius (world): ${collisionRadius.toFixed(3)}`);
+            console.log(`   Current step: ${currentStep}`);
+            
+            
+            instructionsDiv.style.display = 'block';
+            if (firstAidKitModel) {
+                firstAidKitModel.visible = true;
+            }
+            
+            
+            aiAssistantButton.style.display = 'block';
+            
+            
+            
+            
+            setupButtonHandlers();
+            setupTouchTracking();
+            
+            
+            placeButton.style.display = 'none';
+            const infoDiv = document.getElementById('info');
+            if (infoDiv) {
+                infoDiv.style.display = 'none';
+            }
+        });
+
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (handModel) {
+                
+                handModel.rotation.set(0, 0, 0);
+                
+                
+                if (isPlaced && deviceOrientationSupported) {
+                    
+                    const deltaAlpha = (currentOrientation.alpha - initialOrientation.alpha) * (Math.PI / 180);
+                    const deltaBeta = (currentOrientation.beta - initialOrientation.beta) * (Math.PI / 180);
+                    const deltaGamma = (currentOrientation.gamma - initialOrientation.gamma) * (Math.PI / 180);
+                    
+                    
+                    
+                    const distance = Math.abs(placedPosition.z);
+                    
+                    const isLeg = currentProcedure && currentProcedure.baseModel && currentProcedure.baseModel.includes('leg');
+                    const sensitivity = isLeg ? 1.0 : 3.0; 
+                    const offsetX = Math.sin(deltaGamma) * distance * sensitivity;
+                    const offsetY = Math.sin(deltaBeta) * distance * sensitivity;
+                    
+                    
+                    handModel.position.x = placedPosition.x - offsetX;
+                    handModel.position.y = placedPosition.y - offsetY;
+                    handModel.position.z = placedPosition.z;
+                    
+                    
+                    
+                } else if (!isPlaced) {
+                    
+                    handModel.position.set(0, 0, -2);
+                    handModel.visible = false;
+                }
+            }
+            
+            
+            
+            if (isPlaced && currentProcedure) {
+                
+                if (draggedObject) {
+                    draggedObject.visible = true;
+                }
+                
+                
+                currentProcedure.steps.forEach(step => {
+                    const obj = allObjects[step.objectType];
+                    if (obj && objectVisibility[step.objectType]) {
+                        obj.visible = true;
+                        
+                        
+                        if (obj.userData.stuckToWound) {
+                            
+                            const handWorldPos = new THREE.Vector3();
+                            handModel.getWorldPosition(handWorldPos);
+                            const handWorldScale = new THREE.Vector3();
+                            handModel.getWorldScale(handWorldScale);
+                            const scaledX = woundLocalCenter.x * handWorldScale.x;
+                            const scaledY = woundLocalCenter.y * handWorldScale.y;
+                            const objectZ = -1.5;
+                            woundPosition.set(
+                                handWorldPos.x + scaledX,
+                                handWorldPos.y + scaledY,
+                                objectZ
+                            );
+                            obj.position.copy(woundPosition);
+                        }
+                        
+                        checkCollision(obj);
+                    }
+                });
+            }
+            
+            
+            if (waterDropGroup && waterDrops.length > 0) {
+                
+                let activeBottle = null;
+                if (currentProcedure) {
+                    currentProcedure.steps.forEach(step => {
+                        const obj = allObjects[step.objectType];
+                        if (obj && obj.userData.waterDropsActive && (obj.userData.type === 'bottle' || obj.userData.type === 'antiseptic')) {
+                            activeBottle = obj;
+                        }
+                    });
+                }
+                if (activeBottle) {
+                    animateWaterDrops(activeBottle.position);
+                }
+            }
+            
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        
+        function initializeAIAssistant() {
+            
+            aiAssistantContent.innerHTML = '';
+            
+            
+            aiAssistantPanel.style.display = 'flex';
+            
+            
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'ai-loading';
+            loadingDiv.textContent = 'AI Assistant initializing...';
+            aiAssistantContent.appendChild(loadingDiv);
+            
+            
+            fetch('/api/ai-assistant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'init',
+                    procedure_name: currentProcedure.name,
+                    steps: currentProcedure.steps
+                })
+            })
+            .then(response => {
+                console.log(' AI Init Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log(' AI Init Response data:', data);
+                loadingDiv.remove();
+                if (data.success) {
+                    addAIMessage(data.message);
+                    
+                    setTimeout(() => {
+                        requestAIStepTips();
+                    }, 500);
+                } else {
+                    console.error(' AI Init Error:', data.error);
+                    addAIMessage('AI Assistant ready! I\'m here to help guide you through the procedure.');
+                    setTimeout(() => {
+                        requestAIStepTips();
+                    }, 500);
+                }
+            })
+            .catch(error => {
+                console.error(' AI Init Fetch Error:', error);
+                loadingDiv.remove();
+                addAIMessage('AI Assistant ready! I\'m here to help guide you through the procedure.');
+                setTimeout(() => {
+                    requestAIStepTips();
+                }, 500);
+            });
+        }
+        
+        function requestAIStepTips() {
+            if (!currentProcedure) {
+                console.log(' No current procedure for AI tips');
+                return;
+            }
+            
+            const currentStepConfig = currentProcedure.steps.find(s => s.number === currentStep);
+            if (!currentStepConfig) {
+                console.log(' No step config found for step:', currentStep);
+                return;
+            }
+            
+            console.log(' Requesting AI tips for step:', currentStep, currentStepConfig.text);
+            
+            
+            aiAssistantPanel.style.display = 'flex';
+            
+            
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'ai-loading';
+            loadingDiv.textContent = 'Getting tips...';
+            aiAssistantContent.appendChild(loadingDiv);
+            aiAssistantContent.scrollTop = aiAssistantContent.scrollHeight;
+            
+            fetch('/api/ai-assistant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'step_tips',
+                    procedure_name: currentProcedure.name,
+                    step_number: currentStep,
+                    step_text: currentStepConfig.text,
+                    tool_name: currentStepConfig.buttonText
+                })
+            })
+            .then(response => {
+                console.log(' AI Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log(' AI Response data:', data);
+                loadingDiv.remove();
+                if (data.success) {
+                    console.log('Adding AI message:', data.message);
+                    addAIMessage(data.message);
+                } else {
+                    console.error('AI Error in response:', data.error);
+                    addAIMessage('Sorry, I couldn\'t get tips right now. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error(' AI Fetch Error:', error);
+                loadingDiv.remove();
+                addAIMessage('Sorry, there was an error getting tips. Please try again.');
+            });
+        }
+        
+        function requestAIErrorHint(currentStepConfig, wrongObjectType) {
+            
+            const wrongStep = currentProcedure.steps.find(s => s.objectType === wrongObjectType);
+            const wrongToolName = wrongStep ? wrongStep.buttonText : wrongObjectType;
+            
+            
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'ai-loading';
+            loadingDiv.textContent = 'Getting hint...';
+            aiAssistantContent.appendChild(loadingDiv);
+            aiAssistantContent.scrollTop = aiAssistantContent.scrollHeight;
+            
+            fetch('/api/ai-assistant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'error_hint',
+                    procedure_name: currentProcedure.name,
+                    current_step: currentStep,
+                    step_text: currentStepConfig.text,
+                    correct_tool: currentStepConfig.buttonText,
+                    wrong_tool: wrongToolName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingDiv.remove();
+                if (data.success) {
+                    addAIMessage(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('AI Error:', error);
+                loadingDiv.remove();
+            });
+        }
+        
+        
+        function speakText(text) {
+            
+            if ('speechSynthesis' in window) {
+                
+                speechQueue.push(text);
+                console.log(' Added to speech queue:', text, '(Queue length:', speechQueue.length + ')');
+                
+                
+                if (!isSpeaking) {
+                    processSpeechQueue();
+                }
+            } else {
+                console.log('Speech synthesis not supported in this browser');
+            }
+        }
+        
+        
+        function processSpeechQueue() {
+            
+            if (speechQueue.length === 0 || isSpeaking) {
+                return;
+            }
+            
+            
+            const text = speechQueue.shift();
+            isSpeaking = true;
+            
+            try {
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0; 
+                utterance.pitch = 1.0; 
+                utterance.volume = 1.0; 
+                utterance.lang = 'en-US'; 
+                
+                
+                const getVoices = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    if (voices.length > 0) {
+                        
+                        const preferredVoice = voices.find(voice => 
+                            voice.lang.includes('en') && (
+                                voice.name.includes('Female') || 
+                                voice.name.includes('Samantha') || 
+                                voice.name.includes('Karen') ||
+                                voice.name.includes('Google') ||
+                                voice.name.includes('Microsoft')
+                            )
+                        ) || voices.find(voice => voice.lang.includes('en'));
+                        
+                        if (preferredVoice) {
+                            utterance.voice = preferredVoice;
+                            console.log('🎤 Using voice:', preferredVoice.name);
+                        }
+                    }
+                };
+                
+                
+                getVoices();
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = getVoices;
+                }
+                
+                
+                currentSpeechUtterance = utterance;
+                
+                
+                utterance.onstart = () => {
+                    console.log(' Speech started:', text);
+                };
+                
+                utterance.onend = () => {
+                    console.log(' Speech ended');
+                    isSpeaking = false;
+                    currentSpeechUtterance = null;
+                    
+                    
+                    if (speechQueue.length > 0) {
+                        console.log(' Processing next item in queue...');
+                        setTimeout(() => {
+                            processSpeechQueue();
+                        }, 200); 
+                    }
+                };
+                
+                utterance.onerror = (error) => {
+                    
+                    if (error.error !== 'interrupted') {
+                        console.error(' Speech synthesis error:', error.error);
+                    }
+                    isSpeaking = false;
+                    currentSpeechUtterance = null;
+                    
+                    
+                    if (speechQueue.length > 0) {
+                        console.log(' Processing next item in queue after error...');
+                        setTimeout(() => {
+                            processSpeechQueue();
+                        }, 200);
+                    }
+                };
+                
+                
+                window.speechSynthesis.speak(utterance);
+                console.log(' Speaking:', text);
+            } catch (error) {
+                console.error(' Error in processSpeechQueue:', error);
+                isSpeaking = false;
+                currentSpeechUtterance = null;
+                
+                
+                if (speechQueue.length > 0) {
+                    setTimeout(() => {
+                        processSpeechQueue();
+                    }, 200);
+                }
+            }
+        }
+        
+        
+        if ('speechSynthesis' in window) {
+            
+            
+            const loadVoices = () => {
+                const voices = window.speechSynthesis.getVoices();
+                console.log(' Available voices:', voices.length);
+            };
+            
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+            loadVoices();
+        }
+        
+        function addAIMessage(text) {
+            console.log('Adding AI message:', text);
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'ai-message';
+            messageDiv.textContent = text;
+            aiAssistantContent.appendChild(messageDiv);
+            aiAssistantContent.scrollTop = aiAssistantContent.scrollHeight;
+            
+            
+            aiAssistantPanel.style.display = 'flex';
+            console.log(' Message added, panel should be visible');
+            
+            
+            setTimeout(() => {
+                speakText(text);
+            }, 300);
+        }
+        
+        
+        aiAssistantButton.addEventListener('click', () => {
+            const isVisible = aiAssistantPanel.style.display === 'flex';
+            aiAssistantPanel.style.display = isVisible ? 'none' : 'flex';
+        });
+        
+        closeAIBtn.addEventListener('click', () => {
+            aiAssistantPanel.style.display = 'none';
+        });
+        
+        
+        
+    </script>
+</body>
+</html>
