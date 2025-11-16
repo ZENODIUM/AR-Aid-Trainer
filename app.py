@@ -1,10 +1,13 @@
 from flask import Flask, render_template, send_from_directory, request, jsonify
 import mimetypes
 import google.generativeai as genai
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 
-GEMINI_API_KEY = ''
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 genai.configure(api_key=GEMINI_API_KEY)
 
 mimetypes.add_type('model/gltf-binary', '.glb')
